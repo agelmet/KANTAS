@@ -379,3 +379,72 @@ p{text-wrap:pretty}
   .share a,.share button{width:42px;height:42px}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.tr{animation:none}.tw{overflow-x:auto}.js .rv{opacity:1;transform:none}.adv{background-position:50% 0}}
+
+/* ===== perifereia24 · 22 Nov 2026 — λογότυπο, Ροή δεξιά, μεγάλο κύριο θέμα, μπάνερ ανάμεσα, Επικοινωνία/Ταυτότητα ===== */
+:root{--red:#D2161E;--red2:#A80F16;--navy:#0F1C3F;--ink:#0F1C3F}
+.lg-img{display:block;height:58px;width:auto}
+.logo.inv .lg-img{height:48px}
+.mast .wrap{padding-top:18px;padding-bottom:16px}
+.nav li.h>a{font-weight:800}
+@media (min-width:1101px){.grid{grid-template-columns:minmax(0,1fr) 340px;gap:44px}}
+/* κύριο θέμα */
+.hero{display:block;margin-bottom:46px}
+.c-lead .med{aspect-ratio:16/8.4;border-radius:12px}
+.c-lead .ct{padding-top:18px;max-width:860px}
+.c-lead .kk{display:inline-block;background:var(--red);color:#fff;font:800 11px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;padding:6px 9px;border-radius:4px;margin-bottom:10px}
+.c-lead h3{font:700 clamp(32px,3.6vw,50px)/1.08 var(--serif);letter-spacing:-.018em}
+.c-lead p{margin:14px 0 0;color:var(--ink2);font:400 19px/1.55 var(--serif);max-width:72ch}
+.c-lead time{margin-top:12px}
+@media (hover:hover){.c-lead:hover h3{color:var(--red2)}}
+.hsec{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 28px;padding-top:28px;margin-top:28px;border-top:1px solid var(--line)}
+@media (max-width:540px){.hsec{grid-template-columns:minmax(0,1fr)}}
+.hsec .c-std h3{font-size:21px}
+/* Ροή ειδήσεων — ένα χρώμα */
+.feed{border-top:3px solid var(--navy);padding-top:12px}
+.fh2{font:800 15px var(--sans);letter-spacing:.12em;text-transform:uppercase;margin:0 0 6px;color:var(--navy)}
+.fh2 a:hover{color:var(--red)}
+.feed ol{list-style:none;margin:0;padding:0}
+.feed li a{display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;align-items:start;padding:14px 0;border-bottom:1px solid var(--line)}
+.fth{position:relative;display:block;width:92px;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--soft)}
+.fth img{width:100%;height:100%;object-fit:cover;transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+.fth .noimg b{display:none}
+.ftx{display:flex;flex-direction:column;gap:8px;min-width:0}
+.ftx b{font:700 16.5px/1.3 var(--serif);color:var(--navy);transition:color .2s}
+.ftx time{font:600 13px var(--sans);color:var(--mute);font-variant-numeric:tabular-nums}
+@media (hover:hover){.feed li a:hover b{color:var(--red2)}.feed li a:hover .fth img{transform:scale(1.06)}}
+.side .feed{margin-bottom:30px}
+.side .ads{gap:20px}
+.feed-m{display:none}
+/* μπάνερ ανάμεσα στις ενότητες */
+.wide{margin:6px 0 50px;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center}
+.wide .ad{display:inline-block}
+.wide .ad img{max-height:250px;width:auto;margin:0 auto;border-radius:6px}
+/* κάτω μέρος */
+.finfo{display:flex;flex-wrap:wrap;gap:10px 28px;padding-top:18px;padding-bottom:18px;border-top:1px solid rgba(255,255,255,.1);font:800 14px var(--sans);letter-spacing:.06em;text-transform:uppercase}
+.finfo a{color:#fff}
+.finfo a:hover{color:#FF8A92}
+/* Επικοινωνία / Ταυτότητα */
+.pg h1{font:700 clamp(32px,3.4vw,44px)/1.1 var(--serif);margin:10px 0 14px}
+.pg-l{font:400 19px/1.6 var(--serif);color:var(--ink2);max-width:62ch}
+.pg-dl{margin:26px 0;border-top:2px solid var(--navy)}
+.pg-dl div{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.pg-dl dt{font:800 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.pg-dl dd{margin:0;font:700 18px var(--serif)}
+.pg-dl a{color:var(--red2)}
+@media (max-width:1100px){
+  .feed-m{display:block;margin:0 0 40px}
+  .feed-m li:nth-child(n+7){display:none}
+}
+@media (max-width:980px){.lg-img{height:44px}}
+@media (max-width:760px){
+  .lg-img{height:36px}
+  .c-lead .med{aspect-ratio:16/10;border-radius:10px}
+  .c-lead h3{font-size:29px}
+  .c-lead p{font-size:17px}
+  .hsec{gap:20px}
+  .pg-dl div{grid-template-columns:minmax(0,1fr);gap:4px}
+}
+@media (max-width:540px){.feed li a{grid-template-columns:80px minmax(0,1fr)}.fth{width:80px}.ftx b{font-size:16px}}
+.b-4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))!important}
+.blk-empty .bempty{margin:0;padding:22px 20px;border:1.5px dashed var(--line);border-radius:10px;color:var(--mute);font:400 17px/1.5 var(--serif)}
+@media (max-width:540px){.b-4{grid-template-columns:minmax(0,1fr)!important}}

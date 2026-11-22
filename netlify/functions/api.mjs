@@ -1,5 +1,5 @@
 /* /api/*  — ο πίνακας διαχείρισης.
-   POST /api/save   {pass, action, …}       (login, load, body, saveArticle, saveMany, delete, restore, purge, saveAds, saveSettings, undo)
+   POST /api/save   {pass, action, …}       (login, load, body, saveArticle, saveMany, order, delete, restore, purge, saveAds, saveSettings, undo)
    POST /api/upload (x-pass, σώμα = εικόνα) → {url}
    GET  /api/img/<key>   φωτογραφίες που ανέβηκαν από τον πίνακα
    GET  /api/status      «είμαι στο live»                                             */
@@ -21,7 +21,7 @@ function normMeta(m, body, old) {
   const date = m.date && !isNaN(new Date(m.date)) ? new Date(m.date).toISOString() : (old ? old.date : new Date().toISOString());
   return { id, slug: slugify(title), cat: clean(m.cat, 30) || "ellada", sub: clean(m.sub, 30), also: (m.also || []).map((x) => clean(x, 30)).slice(0, 6),
     kicker: clean(m.kicker, 120).trim(), title, lead: clean(m.lead, 700).trim(), img, date, upd: old ? new Date().toISOString() : undefined,
-    author: clean(m.author, 80).trim(), feat: !!m.feat, draft: !!m.draft, ex: excerpt(body), words: String(body).split(/\s+/).length };
+    author: clean(m.author, 80).trim(), feat: !!m.feat, rank: m.feat ? (+m.rank || (old && old.rank) || 99) : undefined, draft: !!m.draft, ex: excerpt(body), words: String(body).split(/\s+/).length };
 }
 async function saveIndex(ix) {
   const st = store(); ix.updated = new Date().toISOString();
@@ -69,15 +69,21 @@ async function handleSave(req) {
     if (b.action === "purge") {
       ix.trash = (ix.trash || []).filter((a) => a.id !== b.id); await st.delete("a/" + b.id + ".json"); const when = await saveIndex(ix); return json({ ok: true, when });
     }
+    if (b.action === "order") {   // σειρά των καρφιτσωμένων στην αρχική: ids = [κύριο θέμα, 2ο, 3ο…]
+      if (!Array.isArray(b.ids)) return json({ ok: false }, 400);
+      const ids = b.ids.slice(0, 40).map((x) => clean(x, 30));
+      for (const a of ix.articles) { const r = ids.indexOf(a.id); if (r >= 0) { a.feat = true; a.rank = r + 1; } else if (a.feat) { a.feat = false; delete a.rank; } }
+      const when = await saveIndex(ix); return json({ ok: true, when });
+    }
     if (b.action === "saveAds") {
       if (!Array.isArray(b.ads)) return json({ ok: false }, 400);
-      ix.ads = b.ads.slice(0, 60).map((a) => ({ id: clean(a.id, 40) || rid(), name: clean(a.name, 120), link: clean(a.link, 400), slot: a.slot === "wide" ? "wide" : "side",
+      ix.ads = b.ads.slice(0, 60).map((a) => ({ id: clean(a.id, 40) || rid(), name: clean(a.name, 120), link: clean(a.link, 400), slot: a.slot === "wide" ? "wide" : "side", after: clean(a.after, 30),
         on: a.on !== false, from: clean(a.from, 10), to: clean(a.to, 10), img: a.img && a.img.u ? { u: clean(a.img.u, 300), w: +a.img.w || 600, h: +a.img.h || 340 } : null }));
       const when = await saveIndex(ix); return json({ ok: true, when });
     }
     if (b.action === "saveSettings") {
       const s = b.settings || {}; const o = {};
-      for (const k of ["name", "tagline", "description", "email", "phone", "advertise", "mit", "facebook", "instagram", "youtube", "tiktok"]) o[k] = clean(s[k], k === "description" ? 400 : 200).trim();
+      for (const k of ["name", "tagline", "description", "email", "phone", "advertise", "mit", "facebook", "instagram", "youtube", "tiktok", "publisher", "director", "editor", "address", "afm", "about", "contactNote"]) o[k] = clean(s[k], k === "description" ? 400 : k === "about" || k === "contactNote" ? 4000 : 200).trim();
       ix.settings = o; const when = await saveIndex(ix); return json({ ok: true, when });
     }
     if (b.action === "undo") {

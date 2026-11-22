@@ -1,4 +1,4 @@
-/* Στερεά Σήμερα — συμπεριφορά σελίδας. Στο προσχέδιο (GitHub Pages) φτιάχνει και τις σελίδες (?k= / ?a= / ?q=). */
+/* perifereia24.gr — συμπεριφορά σελίδας. Στο προσχέδιο (GitHub Pages) φτιάχνει και τις σελίδες (?k= / ?a= / ?q=). */
 import { route, headerHtml, footerHtml } from "./shared.js";
 
 const root = document.documentElement;
@@ -15,14 +15,14 @@ async function draftRender() {
   const trial = readTrial();
   if (trial && trial.state) state = trial.state;
   const p = new URLSearchParams(location.search);
-  const a = p.get("a"), k = p.get("k"), s = p.get("s") || "", q = p.get("q"), page = +p.get("page") || 1;
-  if (!a && !k && q == null && !trial) return; // η αρχική είναι ήδη έτοιμη
+  const a = p.get("a"), k = p.get("k"), s = p.get("s") || "", q = p.get("q"), pg = p.get("p"), page = +p.get("page") || 1;
+  if (!a && !k && q == null && !pg && !trial) return; // η αρχική είναι ήδη έτοιμη
   let body = "";
   if (a) {
     body = trial && trial.bodies && trial.bodies[a] != null ? trial.bodies[a] : "";
     if (!body) { try { const r = await fetch("a/" + a + ".json", { cache: "no-store" }); if (r.ok) body = (await r.json()).body || ""; } catch {} }
   }
-  const r = route(state, ctx, { a, k, s, q, page, body });
+  const r = route(state, ctx, { a, k, s, q, page, body, p: pg });
   document.title = r.title;
   const d = document.querySelector('meta[name="description"]'); if (d) d.content = r.desc || "";
   document.getElementById("hdr").innerHTML = headerHtml(state, ctx, r.active);

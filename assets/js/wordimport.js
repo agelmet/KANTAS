@@ -78,8 +78,9 @@ export function mapLabel(label) {
   for (const [k, s] of reg) if (L.includes(k)) return { cat: "sterea", sub: s };
   if (/ΣΤΕΡΕ/.test(L)) return { cat: "sterea", sub: "" };
   if (/ΚΟΣΜ|ΔΙΕΘΝ/.test(L)) return { cat: "kosmos", sub: "" };
-  if (/ΥΓΕΙ/.test(L)) return { cat: "ygeia", sub: "" };
-  if (/ΑΡΘΡ|ΑΠΟΨ|ΓΝΩΜ|ΣΧΟΛΙ/.test(L)) return { cat: "arthra", sub: "" };
+  if (/ΥΓΕΙ/.test(L) || /ΨΥΧΑΓ/.test(L)) return { cat: "ygeia", sub: /ΥΓΕΙ/.test(L) && /ΨΥΧΑΓ/.test(L) ? "" : /ΨΥΧΑΓ/.test(L) ? "psychagogia" : "ygeia" };
+  if (/ΑΓΓΕΛ/.test(L)) return { cat: "aggelies", sub: "" };
+  if (/ΑΡΘΡ|ΑΠΟΨ|ΓΝΩΜ|ΣΧΟΛΙ/.test(L)) return { cat: "apopseis", sub: "" };
   return { cat: "ellada", sub: "" };
 }
 

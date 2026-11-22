@@ -4,12 +4,15 @@
 export const CATS = [
   { k: "ellada", t: "Ελλάδα", c: "#1F4E9C" },
   { k: "sterea", t: "Στερεά Ελλάδα", c: "#0D7A5F", subs: [["boiotia", "Βοιωτία"], ["evoia", "Εύβοια"], ["fthiotida", "Φθιώτιδα"], ["fokida", "Φωκίδα"], ["evrytania", "Ευρυτανία"]] },
-  { k: "arthra", t: "Άρθρα", c: "#9A5B13" },
+  { k: "apopseis", t: "Απόψεις", c: "#9A5B13" },
   { k: "athlitismos", t: "Αθλητισμός", c: "#D2401E", subs: [["podosfairo", "Ποδόσφαιρο"], ["basket", "Μπάσκετ"], ["alla", "Άλλα σπορ"]] },
   { k: "kosmos", t: "Κόσμος", c: "#5A3E9E" },
-  { k: "ygeia", t: "Υγεία", c: "#0F8B8D" },
+  { k: "ygeia", t: "Υγεία – Ψυχαγωγία", c: "#0F8B8D", subs: [["ygeia", "Υγεία"], ["psychagogia", "Ψυχαγωγία"]] },
+  { k: "aggelies", t: "Αγγελίες", c: "#5B6472" },
 ];
-export const catOf = (k) => CATS.find((c) => c.k === k) || CATS[0];
+export const catOf = (k) => CATS.find((c) => c.k === (k === "arthra" ? "apopseis" : k)) || CATS[0];
+/* σταθερές σελίδες (κάτω μέρος): Επικοινωνία, Ταυτότητα */
+export const PAGES = { epikoinonia: "Επικοινωνία", taftotita: "Ταυτότητα" };
 export const subName = (k, s) => { const c = catOf(k); const x = (c.subs || []).find((y) => y[0] === s); return x ? x[1] : ""; };
 
 export const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -36,6 +39,7 @@ export function fmtDate(iso, style = "full") {
   const d = new Date(iso);
   if (style === "time") { const p = parts(iso); return p.hour + ":" + p.minute; }
   if (style === "short") { const p = parts(iso); return p.day + "/" + p.month + "/" + p.year + " · " + p.hour + ":" + p.minute; }
+  if (style === "feed") { const p = parts(iso); const mo = ["Ιαν", "Φεβ", "Μαρ", "Απρ", "Μαΐ", "Ιουν", "Ιουλ", "Αυγ", "Σεπ", "Οκτ", "Νοε", "Δεκ"][+p.month - 1]; return p.day + " " + mo + " " + p.year + ", " + p.hour + ":" + p.minute; }
   if (style === "day") return new Intl.DateTimeFormat("el-GR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(d);
   return new Intl.DateTimeFormat("el-GR", { timeZone: TZ, day: "numeric", month: "long", year: "numeric" }).format(d) + ", " + fmtDate(iso, "time");
 }
@@ -59,6 +63,7 @@ export function links(ctx) {
     search: (q) => (live ? "/anazitisi" : "./") + "?q=" + encodeURIComponent(q || ""),
     roi: (page) => live ? "/roi" + (page > 1 ? "?page=" + page : "") : "?k=roi" + (page > 1 ? "&page=" + page : ""),
     privacy: live ? "/privacy" : "privacy.html",
+    page: (k) => live ? "/" + k : "?p=" + k,
     asset: (p) => (p.startsWith("/") || /^https?:|^data:/.test(p)) ? p : (live ? "/" : "") + p,
   };
 }
@@ -129,6 +134,10 @@ export function visible(state, now) {
   const t = +now;
   return (state.articles || []).filter((a) => !a.draft && new Date(a.date) <= t + 60000).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
+/* «καρφιτσωμένα» στην αρχική: ο εκδότης τα διαλέγει (αστέρι) και τα βάζει σε σειρά — μένουν ψηλά όσο θέλει, όχι με χρονολογική σειρά */
+export function pinned(state, now) {
+  return visible(state, now).filter((a) => a.feat).sort((a, b) => (a.rank || 999) - (b.rank || 999) || new Date(b.date) - new Date(a.date));
+}
 export const inCat = (a, k, s) => (a.cat === k && (!s || a.sub === s)) || (!s && (a.also || []).includes(k));
 export function activeAds(state, slot, now) {
   const day = new Date(now).toISOString().slice(0, 10);
@@ -150,6 +159,7 @@ export function card(m, ctx, v = "std", opts = {}) {
   const ex = m.lead || m.ex || "";
   if (v === "row") return `<article class="c c-row"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "120px", want: 480 })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3><time datetime="${m.date}">${ago(m.date, ctx.now)}</time></div></article>`;
   if (v === "text") return `<article class="c c-text"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3><time datetime="${m.date}">${ago(m.date, ctx.now)}</time></article>`;
+  if (v === "lead") return `<article class="c c-lead"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:1100px) 100vw, 860px", want: 1280, eager: opts.eager, big: true })}<div class="ct"><span class="kk">Κύριο θέμα</span>${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${fmtDate(m.date, "feed")}</time></div></article>`;
   if (v === "big") return `<article class="c c-big"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:900px) 100vw, 640px", want: 960, eager: opts.eager, big: true })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${ago(m.date, ctx.now)}</time></div></article>`;
   return `<article class="c c-std"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:700px) 100vw, 320px", want: 480 })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${opts.ex && ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${ago(m.date, ctx.now)}</time></div></article>`;
 }
@@ -169,21 +179,19 @@ export function headerHtml(state, ctx, active = "") {
 ${tick ? `<div class="tick" aria-label="Τελευταία νέα"><span class="tl">Τώρα</span><div class="tw"><div class="tr">${tick}${tick}</div></div></div>` : ""}
 ${soc ? `<div class="soc">${soc}</div>` : ""}</div></div>
 <header class="mast"><div class="wrap">
-<a class="logo" href="${L.home}" aria-label="${esc(st.name || "")} — αρχική">${logoHtml(st)}</a>
+<a class="logo" href="${L.home}" aria-label="${esc(st.name || "")} — αρχική">${logoHtml(st, false, ctx)}</a>
 ${st.tagline ? `<p class="tag">${esc(st.tagline)}</p>` : ""}
 <div class="mtools"><button class="srch-b" type="button" data-search aria-label="Αναζήτηση"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Αναζήτηση</span></button>
 <button class="burger" type="button" aria-label="Μενού" aria-expanded="false" data-burger><span></span><span></span><span></span></button></div>
 </div></header>
-<nav class="nav" aria-label="Ενότητες"><div class="wrap"><ul><li class="h${active === "home" ? " on" : ""}"><a href="${L.home}" aria-label="Αρχική"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9H3z"/></svg></a></li>${navs}<li class="roi${active === "roi" ? " on" : ""}"><a href="${L.roi()}">Ροή ειδήσεων</a></li></ul></div></nav>
+<nav class="nav" aria-label="Ενότητες"><div class="wrap"><ul><li class="h${active === "home" ? " on" : ""}"><a href="${L.home}">Αρχική</a></li>${navs}</ul></div></nav>
 <div class="srch" hidden data-srchbox><form class="wrap" action="${ctx.mode === "live" ? "/anazitisi" : "./"}" method="get" role="search"><input type="search" name="q" placeholder="Αναζήτηση ειδήσεων…" aria-label="Αναζήτηση" autocomplete="off"><button type="submit">Αναζήτηση</button><button type="button" class="x" data-search-close aria-label="Κλείσιμο">✕</button></form></div>
 <div class="mnav" hidden data-mnav><div class="mn-in"><button type="button" class="x" data-mnav-close aria-label="Κλείσιμο μενού">✕</button>
 <a class="mn-h" href="${L.home}">Αρχική</a>${CATS.map((c) => `<div class="mn-c" style="--cc:${c.c}"><a href="${L.cat(c.k)}">${esc(c.t)}</a>${c.subs ? `<div class="mn-s">${c.subs.map(([s, n]) => `<a href="${L.cat(c.k, s)}">${esc(n)}</a>`).join("")}</div>` : ""}</div>`).join("")}<a class="mn-h" href="${L.roi()}">Ροή ειδήσεων</a>${soc ? `<div class="soc">${soc}</div>` : ""}</div></div>`;
 }
-export function logoHtml(st) {
-  const name = (st.name || "Στερεά Σήμερα").trim();
-  const parts = name.split(/\s+/);
-  const a = parts.length > 1 ? parts.slice(0, -1).join(" ") : name, b = parts.length > 1 ? parts[parts.length - 1] : "";
-  return `<span class="lg-m" aria-hidden="true"><svg viewBox="0 0 40 40"><rect width="40" height="40" rx="9" fill="#C8102E"/><path d="M29 12H11l9 8-9 8h18" fill="none" stroke="#fff" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg></span><span class="lg-t"><span class="lg-a">${esc(a)}</span>${b ? `<span class="lg-b">${esc(b)}</span>` : ""}</span>`;
+export function logoHtml(st, inv = false, ctx = { mode: "draft" }) {
+  const name = (st.name || "perifereia24.gr").trim(), L = links(ctx);
+  return `<img class="lg-img" src="${L.asset(inv ? "assets/brand/perifereia24-logo-inv.png" : "assets/brand/perifereia24-logo.png")}" width="640" height="153" alt="${esc(name)}">`;
 }
 function socials(st) {
   const S = [["facebook", "Facebook", '<path d="M14 8h3V4h-3c-2.8 0-4 1.8-4 4.3V10H7v4h3v8h4v-8h3l1-4h-4V8.6c0-.4.3-.6.6-.6z"/>'],
@@ -196,55 +204,61 @@ export function footerHtml(state, ctx) {
   const L = links(ctx), st = state.settings || {};
   const contact = [st.email && `<a href="mailto:${esc(st.email)}">${esc(st.email)}</a>`, st.phone && `<a href="tel:${esc(st.phone.replace(/\s/g, ""))}">${esc(st.phone)}</a>`].filter(Boolean).join(" · ");
   return `<footer class="foot"><div class="wrap fg">
-<div class="f1"><a class="logo inv" href="${L.home}">${logoHtml(st)}</a>${st.tagline ? `<p>${esc(st.tagline)}</p>` : ""}${socials(st) ? `<div class="soc">${socials(st)}</div>` : ""}</div>
+<div class="f1"><a class="logo inv" href="${L.home}">${logoHtml(st, true, ctx)}</a>${st.tagline ? `<p>${esc(st.tagline)}</p>` : ""}${socials(st) ? `<div class="soc">${socials(st)}</div>` : ""}</div>
 ${CATS.map((c) => `<div class="fc"><a class="fh" href="${L.cat(c.k)}" style="--cc:${c.c}">${esc(c.t)}</a>${(c.subs || []).map(([s, n]) => `<a href="${L.cat(c.k, s)}">${esc(n)}</a>`).join("")}</div>`).join("")}
-</div><div class="wrap fbot">
+</div><div class="wrap finfo"><a href="${L.page("epikoinonia")}">Επικοινωνία</a><a href="${L.page("taftotita")}">Ταυτότητα</a>${st.advertise || st.email ? `<a href="mailto:${esc(st.advertise || st.email)}">Διαφημιστείτε μαζί μας</a>` : ""}<a href="${L.roi()}">Ροή ειδήσεων</a><a href="${L.privacy}">Απόρρητο &amp; cookies</a></div><div class="wrap fbot">
 <p>${contact ? "Επικοινωνία: " + contact : ""}${st.advertise ? ` · <a href="mailto:${esc(st.advertise)}">Διαφημιστείτε μαζί μας</a>` : ""}${st.mit ? ` · Αρ. Μητρώου Επιγραφικού Τύπου (ΜΗΤ): ${esc(st.mit)}` : ""}</p>
 <p>© ${new Date(ctx.now).getFullYear()} ${esc(st.name || "")} · <a href="${L.privacy}">Απόρρητο &amp; cookies</a> · <a class="cred" href="https://advonmedia.com" target="_blank" rel="noopener">Designed by <b class="adv">Advon Media</b></a></p>
 </div></footer>`;
 }
 
-export function sidebarHtml(state, ctx, { latest = true, exclude = "", sticky = false } = {}) {
-  const L = links(ctx);
+export function sidebarHtml(state, ctx, { exclude = "" } = {}) {
   const ads = activeAds(state, "side", ctx.now);
-  const lt = latest ? visible(state, ctx.now).filter((m) => m.id !== exclude).slice(0, 6) : [];
-  return `<aside class="side">${ads.length ? `<div class="ads">${ads.map((a) => adHtml(a, ctx)).join("")}</div>` : ""}
-${lt.length ? `<section class="sl${sticky ? " stk" : ""}"><h2 class="sh"><span>Τελευταία</span></h2><ol>${lt.map((m) => `<li><a href="${L.art(m)}"><time>${fmtDate(m.date, "time")}</time><span>${esc(m.title)}</span></a></li>`).join("")}</ol><a class="more" href="${L.roi()}">Όλη η ροή →</a></section>` : ""}</aside>`;
+  return `<aside class="side">${feedHtml(state, ctx, { exclude })}${ads.length ? `<div class="ads">${ads.map((a) => adHtml(a, ctx)).join("")}</div>` : ""}</aside>`;
+}
+/* Ροή ειδήσεων: ένα χρώμα, μικρή τετράγωνη φωτογραφία αριστερά, τίτλος, ημερομηνία */
+export function feedHtml(state, ctx, { n = 10, exclude = "", cls = "" } = {}) {
+  const L = links(ctx);
+  const list = visible(state, ctx.now).filter((m) => m.id !== exclude).slice(0, n);
+  if (!list.length) return "";
+  return `<section class="feed ${cls}" aria-label="Ροή ειδήσεων"><h2 class="fh2"><a href="${L.roi()}">Ροή ειδήσεων</a></h2><ol>${list.map((m) => `<li><a href="${L.art(m)}"><span class="fth">${m.img && m.img.u ? imgTag(m.img, ctx, { sizes: "96px", want: 480, alt: "" }) : noImg(m)}</span><span class="ftx"><b>${esc(m.title)}</b><time datetime="${m.date}">${fmtDate(m.date, "feed")}</time></span></a></li>`).join("")}</ol><a class="more" href="${L.roi()}">Όλες οι ειδήσεις →</a></section>`;
 }
 /* διαφημίσεις μέσα στη ροή για κινητά (στην οθόνη υπολογιστή είναι στο πλάι) */
 function inlineAd(ads, i, ctx) { if (!ads.length) return ""; return adHtml(ads[i % ads.length], ctx, "mob"); }
 
 /* ---------- σελίδες ---------- */
 export function homeHtml(state, ctx) {
-  const L = links(ctx);
   const all = visible(state, ctx.now);
   if (!all.length) return `<div class="wrap empty"><p>Δεν υπάρχουν ακόμη άρθρα.</p></div>`;
-  const feat = all.filter((a) => a.feat);
-  const lead = feat[0] || all[0];
+  const pins = pinned(state, ctx.now);
+  const lead = pins[0] || all[0];
   const used = new Set([lead.id]);
-  const sec = [...feat.slice(1), ...all].filter((a) => !used.has(a.id) && (used.add(a.id), true)).slice(0, 2);
-  const roi = all.slice(0, 9);
+  const sec = [...pins.slice(1), ...all].filter((a) => !used.has(a.id) && (used.add(a.id), true)).slice(0, 4);
   const sideAds = activeAds(state, "side", ctx.now), wide = activeAds(state, "wide", ctx.now);
-  let blocks = "", ai = 1;
-  const variants = { ellada: "a", sterea: "s", arthra: "op", athlitismos: "sp", kosmos: "b", ygeia: "a" };
+  const between = (k) => wide.filter((a) => (a.after || "") === k);
+  const loose = wide.filter((a) => !a.after || !CATS.find((c) => c.k === a.after));
+  let blocks = "", ai = 1, li = 0;
+  const variants = { ellada: "a", sterea: "s", apopseis: "op", athlitismos: "sp", kosmos: "b", ygeia: "a", aggelies: "b" };
   const shown = new Set([lead.id, ...sec.map((x) => x.id)]);
   CATS.forEach((c, i) => {
     let list = all.filter((a) => inCat(a, c.k) && !shown.has(a.id));
     if (!list.length) list = all.filter((a) => inCat(a, c.k));
-    if (!list.length) return;
-    blocks += sectionBlock(c, list, ctx, variants[c.k] || "a");
-    if (wide.length && i % 2 === 1) blocks += `<div class="wide">${adHtml(wide[(i >> 1) % wide.length], ctx)}</div>`;
-    else blocks += inlineAd(sideAds, ai++, ctx);
+    if (list.length) blocks += sectionBlock(c, list, ctx, variants[c.k] || "a");
+    else if (c.k === "apopseis" || c.k === "aggelies") blocks += `<section class="blk blk-empty" style="--cc:${c.c}" aria-label="${esc(c.t)}"><header class="bh"><h2><a href="${links(ctx).cat(c.k)}">${esc(c.t)}</a></h2></header><p class="bempty">${c.k === "apopseis" ? "Εδώ θα δημοσιεύονται τα άρθρα γνώμης και οι απόψεις." : "Εδώ θα δημοσιεύονται οι αγγελίες."}</p></section>`;
+    const bw = between(c.k);
+    if (bw.length) blocks += bw.map((a) => `<div class="wide">${adHtml(a, ctx)}</div>`).join("");
+    else if (list.length && loose.length && i % 2 === 1) blocks += `<div class="wide">${adHtml(loose[li++ % loose.length], ctx)}</div>`;
+    else if (list.length) blocks += inlineAd(sideAds, ai++, ctx);
   });
   return `<div class="wrap grid"><div class="main">
-<section class="hero" aria-label="Κεντρικά θέματα">
-${card(lead, ctx, "big", { eager: true })}
+<section class="hero" aria-label="Κύρια θέματα">
+${card(lead, ctx, "lead", { eager: true })}
 <div class="hsec">${sec.map((m) => card(m, ctx, "std", { ex: true })).join("")}</div>
-<div class="roi-h"><h2 class="sh"><span>Ροή ειδήσεων</span></h2><ol>${roi.map((m) => `<li style="--cc:${catOf(m.cat).c}"><a href="${L.art(m)}"><time>${fmtDate(m.date, "time")}</time><span><i>${esc(subName(m.cat, m.sub) || catOf(m.cat).t)}</i>${esc(m.title)}</span></a></li>`).join("")}</ol><a class="more" href="${L.roi()}">Όλες οι ειδήσεις →</a></div>
 </section>
+${feedHtml(state, ctx, { n: 8, cls: "feed-m" })}
 ${inlineAd(sideAds, 0, ctx)}
 ${blocks}
-</div>${sidebarHtml(state, ctx, { sticky: true })}</div>`;
+</div>${sidebarHtml(state, ctx)}</div>`;
 }
 
 function sectionBlock(c, list, ctx, v) {
@@ -316,6 +330,22 @@ ${rel.length + more.length ? `<section class="rel"><h2 class="sh"><span>Διαβ
 <div class="lb" hidden data-lb><button type="button" class="x" aria-label="Κλείσιμο">✕</button><img alt=""></div>`;
 }
 
+export function pageHtml(state, ctx, k) {
+  const st = state.settings || {}, L = links(ctx);
+  const row = (l, v, href) => v ? `<div><dt>${l}</dt><dd>${href ? `<a href="${esc(href)}">${esc(v)}</a>` : esc(v)}</dd></div>` : "";
+  const tel = (p) => "tel:" + String(p || "").replace(/[^\d+]/g, "");
+  let body = "";
+  if (k === "taftotita") {
+    const rows = row("Ιδιοκτήτης / Εκδότης", st.publisher) + row("Διευθυντής", st.director) + row("Αρχισυντάκτης", st.editor) + row("Έδρα", st.address) + row("ΑΦΜ", st.afm) +
+      row("Αρ. Μητρώου Επιγραφικού Τύπου (ΜΗΤ)", st.mit) + row("E-mail", st.email, st.email && "mailto:" + st.email) + row("Τηλέφωνο", st.phone, st.phone && tel(st.phone));
+    body = `<p class="pg-l">Η ταυτότητα του ${esc(st.name || "")}.</p>${rows ? `<dl class="pg-dl">${rows}</dl>` : ""}${st.about ? `<div class="abody">${bodyHtml(st.about)}</div>` : ""}${!rows && !st.about ? `<p class="empty">Τα στοιχεία της ταυτότητας συμπληρώνονται σύντομα.</p>` : ""}`;
+  } else {
+    const rows = row("E-mail", st.email, st.email && "mailto:" + st.email) + row("Τηλέφωνο", st.phone, st.phone && tel(st.phone)) + row("Για διαφημίσεις", st.advertise, st.advertise && "mailto:" + st.advertise) + row("Διεύθυνση", st.address);
+    body = `<p class="pg-l">Στείλτε μας τις ειδήσεις, τα δελτία τύπου και τις φωτογραφίες σας, ή ρωτήστε μας για διαφήμιση στο ${esc(st.name || "")}.</p>${rows ? `<dl class="pg-dl">${rows}</dl>` : `<p class="empty">Τα στοιχεία επικοινωνίας συμπληρώνονται σύντομα.</p>`}${st.contactNote ? `<div class="abody">${bodyHtml(st.contactNote)}</div>` : ""}`;
+  }
+  return `<div class="wrap grid"><div class="main"><article class="pg"><nav class="crumbs" aria-label="Διαδρομή"><a href="${L.home}">Αρχική</a> <span>›</span> ${esc(PAGES[k])}</nav><h1>${esc(PAGES[k])}</h1>${body}</article></div>${sidebarHtml(state, ctx)}</div>`;
+}
+
 export function searchHtml(state, ctx, q) {
   const n = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = n(q).split(/\s+/).filter((w) => w.length > 1);
@@ -325,9 +355,10 @@ export function searchHtml(state, ctx, q) {
 }
 
 /* ---------- ολόκληρη σελίδα ---------- */
-export function route(state, ctx, { k, s, a, q, page, body, notFound }) {
+export function route(state, ctx, { k, s, a, q, page, body, notFound, p }) {
   const st = state.settings || {}, L = links(ctx);
-  const site = st.name || "Στερεά Σήμερα";
+  const site = st.name || "perifereia24.gr";
+  if (p && PAGES[p]) return { title: PAGES[p] + " | " + site, desc: PAGES[p] + " — " + site, main: pageHtml(state, ctx, p), active: "", path: L.page(p) };
   if (notFound) return { title: "Η σελίδα δεν βρέθηκε | " + site, desc: st.tagline || "", main: `<div class="wrap empty"><h1>Η σελίδα δεν βρέθηκε</h1><p><a href="${L.home}">Επιστροφή στην αρχική</a></p></div>`, active: "", status: 404 };
   if (a) {
     const m = (state.articles || []).find((x) => x.id === a);
@@ -340,7 +371,7 @@ export function route(state, ctx, { k, s, a, q, page, body, notFound }) {
   if (k) {
     if (!CATS.find((c) => c.k === k) || (s && !subName(k, s))) return route(state, ctx, { notFound: true });
     const c = catOf(k), t = s ? subName(k, s) : c.t;
-    return { title: t + " — Ειδήσεις | " + site, desc: `Οι τελευταίες ειδήσεις για ${s ? "τη " + t : c.t === "Άρθρα" ? "τα άρθρα γνώμης" : t}: ${site}.`, main: catHtml(state, ctx, k, s, page), active: k, path: L.cat(k, s, page) };
+    return { title: t + " — Ειδήσεις | " + site, desc: `Οι τελευταίες ειδήσεις για ${s ? "τη " + t : c.k === "apopseis" ? "τις απόψεις και τα άρθρα γνώμης" : t}: ${site}.`, main: catHtml(state, ctx, k, s, page), active: k, path: L.cat(k, s, page) };
   }
   return { title: site + " — " + (st.tagline || "Ειδήσεις"), desc: st.description || st.tagline || "", main: homeHtml(state, ctx), active: "home", path: L.home, home: true };
 }
@@ -351,7 +382,7 @@ export function docHtml(state, ctx, r, { origin = "", data = "", v = "1" } = {})
   const A = (p) => L.asset(p) + (/\.(css|js)$/.test(p) ? "?v=" + v : "");
   const live = ctx.mode === "live";
   const canon = live && origin && r.path ? origin + r.path : "";
-  const site = st.name || "Στερεά Σήμερα";
+  const site = st.name || "perifereia24.gr";
   const img = r.image ? (r.image.startsWith("http") ? r.image : origin + r.image) : (origin ? origin + "/assets/og.jpg" : "");
   const ld = [];
   const org = { "@type": "NewsMediaOrganization", "@id": (origin || "") + "/#org", name: site, url: (origin || "") + "/", logo: { "@type": "ImageObject", url: (origin || "") + "/assets/icons/icon-512.png" } };

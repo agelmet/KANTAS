@@ -16,7 +16,7 @@ export default async (req) => {
   const L = links(ctx);
   const all = visible(state, ctx.now);
   if (p === "/sitemap.xml") {
-    const urls = [["/", all[0] && all[0].date], ["/roi"], ...CATS.flatMap((c) => [["/kat/" + c.k], ...(c.subs || []).map(([s]) => ["/kat/" + c.k + "/" + s])]),
+    const urls = [["/", all[0] && all[0].date], ["/roi"], ["/epikoinonia"], ["/taftotita"], ...CATS.flatMap((c) => [["/kat/" + c.k], ...(c.subs || []).map(([s]) => ["/kat/" + c.k + "/" + s])]),
       ...all.slice(0, 5000).map((m) => [L.art(m), m.upd || m.date])];
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(([x, d]) => `<url><loc>${esc(origin + x)}</loc>${d ? `<lastmod>${d}</lastmod>` : ""}</url>`).join("")}</urlset>`, { headers: H("application/xml; charset=utf-8") });
   }
@@ -32,6 +32,7 @@ export default async (req) => {
   let opts = null;
   if (p === "/" || p === "/index.html") opts = {};
   else if (p === "/roi") opts = { k: "roi", page };
+  else if (p === "/epikoinonia" || p === "/taftotita") opts = { p: p.slice(1) };
   else if (p === "/anazitisi") opts = { q: u.searchParams.get("q") || "" };
   else { let m;
     if ((m = p.match(/^\/kat\/([a-z]+)(?:\/([a-z]+))?$/))) opts = { k: m[1], s: m[2] || "", page };
@@ -44,4 +45,4 @@ export default async (req) => {
   const r = route(state, ctx, opts);
   return new Response(docHtml(state, ctx, r, { origin, v: V }), { status: r.status || 200, headers: H("text/html; charset=utf-8") });
 };
-export const config = { path: ["/", "/index.html", "/kat/*", "/arthro/*", "/roi", "/anazitisi", "/sitemap.xml", "/news-sitemap.xml", "/rss.xml"] };
+export const config = { path: ["/", "/index.html", "/kat/*", "/arthro/*", "/roi", "/anazitisi", "/epikoinonia", "/taftotita", "/sitemap.xml", "/news-sitemap.xml", "/rss.xml"] };
