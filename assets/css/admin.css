@@ -180,3 +180,17 @@ p.vs{margin:0 0 18px;color:var(--mute)}
   .top .hide-s{display:none}
   .quick{grid-template-columns:1fr}
 }
+/* «Να μπει και στα πρώτα θέματα της αρχικής;» */
+.place{margin-top:16px;padding-top:14px;border-top:1px solid var(--line,#E5E7EB)}
+.place .pq{font-size:16px;margin:0 0 10px;line-height:1.4}
+.pls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pls button{text-align:left;border:2px solid var(--line,#E5E7EB);background:#fff;border-radius:12px;padding:12px 14px;cursor:pointer;font:inherit;color:inherit}
+.pls button b{display:block;font-size:15px}
+.pls button small{display:block;color:var(--mute);font-size:12.5px;font-weight:500;margin-top:3px;line-height:1.35}
+.pls button.on{border-color:var(--red);background:#FFF1F2}
+.pls button.on b{color:var(--red)}
+.dt{display:flex;gap:10px}.dt input[type=date]{flex:1}.dt input[type=time]{width:130px}
+.sw.nt{margin-top:10px;font-size:14.5px}
+.idate{gap:18px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+.plsel{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800}
+@media (max-width:700px){.pls{grid-template-columns:minmax(0,1fr)}}

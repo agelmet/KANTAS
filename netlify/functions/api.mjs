@@ -21,7 +21,7 @@ function normMeta(m, body, old) {
   const date = m.date && !isNaN(new Date(m.date)) ? new Date(m.date).toISOString() : (old ? old.date : new Date().toISOString());
   return { id, slug: slugify(title), cat: clean(m.cat, 30) || "ellada", sub: clean(m.sub, 30), also: (m.also || []).map((x) => clean(x, 30)).slice(0, 6),
     kicker: clean(m.kicker, 120).trim(), title, lead: clean(m.lead, 700).trim(), img, date, upd: old ? new Date().toISOString() : undefined,
-    author: clean(m.author, 80).trim(), feat: !!m.feat, rank: m.feat ? (+m.rank || (old && old.rank) || 99) : undefined, draft: !!m.draft, ex: excerpt(body), words: String(body).split(/\s+/).length };
+    author: clean(m.author, 80).trim(), feat: !!m.feat, rank: m.feat ? (+m.rank || (old && old.rank) || 99) : undefined, draft: !!m.draft, noTime: m.noTime ? true : undefined, ex: excerpt(body), words: String(body).split(/\s+/).length };
 }
 async function saveIndex(ix) {
   const st = store(); ix.updated = new Date().toISOString();
@@ -84,6 +84,7 @@ async function handleSave(req) {
     if (b.action === "saveSettings") {
       const s = b.settings || {}; const o = {};
       for (const k of ["name", "tagline", "description", "email", "phone", "advertise", "mit", "facebook", "instagram", "youtube", "tiktok", "publisher", "director", "editor", "address", "afm", "about", "contactNote"]) o[k] = clean(s[k], k === "description" ? 400 : k === "about" || k === "contactNote" ? 4000 : 200).trim();
+      o.feedNoDup = s.feedNoDup !== false;
       ix.settings = o; const when = await saveIndex(ix); return json({ ok: true, when });
     }
     if (b.action === "undo") {

@@ -98,6 +98,24 @@ const api = {
   },
 };
 const sortA = () => S.articles.sort((a, b) => new Date(b.date) - new Date(a.date));
+/* Αρχική σελίδα: σειρά των «πρώτων θεμάτων» (η 1η = Κύριο θέμα) */
+const featIds = (skip) => S.articles.filter((a) => a.feat && a.id !== skip).sort((a, b) => (a.rank || 999) - (b.rank || 999) || new Date(b.date) - new Date(a.date)).map((a) => a.id);
+const placeOf = (m) => !m || !m.feat ? "no" : featIds()[0] === m.id ? "main" : "top";
+function placeIds(id, place) {            // "main" → 1η θέση, "top" → 2η θέση (αμέσως κάτω από το κύριο θέμα), "no" → εκτός
+  const ids = featIds(id);
+  if (place === "main") ids.unshift(id); else if (place === "top") ids.splice(Math.min(1, ids.length), 0, id);
+  return ids;
+}
+/* Ημερομηνία: μέρα + (προαιρετικά) ώρα. «Χωρίς ώρα» → στο site φαίνεται μόνο η ημερομηνία */
+function pickDate(day, time, noTime, oldIso) {
+  const today = localDT().slice(0, 10); day = day || today;
+  if (noTime) {
+    if (oldIso && localDT(oldIso).slice(0, 10) === day) return new Date(oldIso).toISOString();
+    if (day === today) return new Date().toISOString();
+    return new Date(day + (day > today ? "T00:05" : "T12:00")).toISOString();
+  }
+  return new Date(day + "T" + (time || localDT().slice(11, 16))).toISOString();
+}
 
 /* Μικραίνει τη φωτογραφία στη συσκευή πριν ανέβει */
 async function shrink(file, max = 1600, q = 0.82) {
@@ -155,10 +173,10 @@ function go(v, arg) {
 function when(m) {
   const d = new Date(m.date), now = new Date();
   const day = (x) => x.toLocaleDateString("el-GR", { timeZone: "Europe/Athens" });
-  const t = fmtDate(m.date, "time");
-  if (day(d) === day(now)) return "Σήμερα " + t;
-  const y = new Date(now - 864e5); if (day(d) === day(y)) return "Χθες " + t;
-  return fmtDate(m.date, "short");
+  const t = m.noTime ? "" : " " + fmtDate(m.date, "time");
+  if (day(d) === day(now)) return "Σήμερα" + t;
+  const y = new Date(now - 864e5); if (day(d) === day(y)) return "Χθες" + t;
+  return m.noTime ? fmtDate(m.date, "short").split(" · ")[0] : fmtDate(m.date, "short");
 }
 function thumb(m) {
   const c = catOf(m.cat); const u = thumbUrl(m.img);
@@ -189,8 +207,8 @@ ${(S.trash || []).length ? `<details class="trash"><summary>Κάδος (${S.tras
     const id = row.dataset.id; const m = S.articles.find((a) => a.id === id);
     row.onclick = async (e) => {
       if (e.target.closest("[data-star]")) {
-        e.stopPropagation(); const body = await api.body(id);
-        try { const mx = Math.max(0, ...S.articles.filter((a) => a.feat).map((a) => a.rank || 0)); await api.saveArticle({ ...m, feat: !m.feat, rank: m.feat ? undefined : mx + 1 }, body); toast(m.feat ? "Βγήκε από την αρχική" : "Καρφιτσώθηκε στην αρχική — τη σειρά την αλλάζετε στο «Αρχική σελίδα»"); vList(); } catch (err) { toast(err.message, true); } return;
+        e.stopPropagation(); const was = !!m.feat;
+        try { await api.order(placeIds(id, was ? "no" : "top")); toast(was ? "Βγήκε από τα πρώτα θέματα της αρχικής" : "Μπήκε στα πρώτα θέματα της αρχικής (θέση #2) — τη σειρά την αλλάζετε στο «Αρχική σελίδα»"); vList(); } catch (err) { toast(err.message, true); } return;
       }
       if (e.target.closest("[data-del]")) {
         e.stopPropagation(); if (!confirm("Να σβηστεί το άρθρο;\n\n«" + m.title + "»\n\n(Μπορείτε να το επαναφέρετε από τον Κάδο.)")) return;
@@ -208,13 +226,15 @@ function vHome() {
   const byId = (id) => S.articles.find((a) => a.id === id);
   const draw = () => {
     const rest = S.articles.filter((a) => !ids.includes(a.id) && !a.draft).slice(0, 30);
-    V.innerHTML = `<h2 class="vt">Αρχική σελίδα</h2><p class="vs">Διαλέξτε ποιες ειδήσεις μένουν ψηλά στην αρχική και με ποια σειρά. Η <b>πρώτη</b> είναι το <b>κύριο θέμα</b> (μεγάλη φωτογραφία), οι επόμενες 4 μπαίνουν από κάτω. Μένουν εκεί όσο θέλετε — δεν τις σπρώχνουν οι νεότερες. Όλες οι ειδήσεις φαίνονται ούτως ή άλλως στη «Ροή ειδήσεων» δεξιά.</p>
+    V.innerHTML = `<h2 class="vt">Αρχική σελίδα</h2><p class="vs">Διαλέξτε ποιες ειδήσεις μένουν ψηλά στην αρχική και με ποια σειρά. Η <b>πρώτη</b> είναι το <b>κύριο θέμα</b> (μεγάλη φωτογραφία), οι επόμενες 4 μπαίνουν από κάτω. Μένουν εκεί όσο θέλετε — δεν τις σπρώχνουν οι νεότερες.</p>
+<label class="tg" style="margin-bottom:18px"><input type="checkbox" data-nodup ${(S.settings || {}).feedNoDup !== false ? "checked" : ""}><span>Η «Ροή ειδήσεων» να μη δείχνει ξανά τα 5 πρώτα θέματα<small>Στην αρχική, η Ροή ειδήσεων (δεξιά στον υπολογιστή, κάτω από τα θέματα στο κινητό) ξεκινά από τις επόμενες ειδήσεις, ώστε ο αναγνώστης να μη βλέπει τα ίδια δύο φορές. Αν το βγάλετε, η Ροή δείχνει όλες τις τελευταίες ειδήσεις. Στις άλλες σελίδες η Ροή δείχνει πάντα όλες τις ειδήσεις.</small></span></label>
 <div class="alist pins">${ids.map((id, i) => { const m = byId(id); if (!m) return ""; const c = catOf(m.cat); return `<div class="ai pin" data-id="${id}">${thumb(m)}<div><h3>${i === 0 ? '<span class="badge f">Κύριο θέμα</span> ' : i < 5 ? `<span class="badge">#${i + 1}</span> ` : `<span class="badge d">#${i + 1} — εκτός πρώτης οθόνης</span> `}${esc(m.title)}</h3><div class="meta"><span class="tagc" style="--cc:${c.c}">${esc(subName(m.cat, m.sub) || c.t)}</span><span>${when(m)}</span></div></div>
 <div class="acts"><button class="ib" data-mv="-1" aria-label="Πιο ψηλά" ${i ? "" : "disabled"}>${ic("up")}</button><button class="ib" data-mv="1" aria-label="Πιο χαμηλά" ${i < ids.length - 1 ? "" : "disabled"}>${ic("down")}</button><button class="ib" data-un aria-label="Βγάλτε το από την αρχική">${ic("trash")}</button></div></div>`; }).join("") || '<p class="vs">Δεν έχετε καρφιτσώσει ειδήσεις — η αρχική δείχνει τις πιο πρόσφατες.</p>'}</div>
 <h3 class="vt" style="font-size:19px;margin-top:28px">Προσθήκη στην αρχική</h3><div class="alist">${rest.map((m) => `<div class="ai" data-add="${m.id}" style="cursor:default">${thumb(m)}<div><h3>${esc(m.title)}</h3><div class="meta"><span>${when(m)}</span></div></div><div class="acts"><button class="btn" data-addb>${ic("plus")}Στην αρχική</button></div></div>`).join("")}</div>`;
     let sb = $(".savebar"); if (!sb) { sb = document.createElement("div"); sb.className = "savebar"; document.body.appendChild(sb); }
     sb.innerHTML = `<div class="in"><span class="st">${dirty ? "Υπάρχουν αλλαγές" : "Όλα αποθηκευμένα"}</span><button class="btn pri big" data-save ${dirty ? "" : "disabled"}>Αποθήκευση αρχικής</button></div>`;
     $("[data-save]", sb).onclick = async () => { try { await api.order(ids); dirty = false; toast("Η αρχική ενημερώθηκε"); draw(); } catch (err) { toast(err.message, true); } };
+    const nd = $("[data-nodup]", V); nd.onchange = async () => { try { await api.saveSettings({ ...(S.settings || {}), feedNoDup: nd.checked }); toast(nd.checked ? "Η Ροή ειδήσεων δεν θα επαναλαμβάνει τα 5 πρώτα θέματα" : "Η Ροή ειδήσεων θα δείχνει όλες τις τελευταίες ειδήσεις"); } catch (err) { nd.checked = !nd.checked; toast(err.message, true); } };
     $$(".pin", V).forEach((el) => { const i = ids.indexOf(el.dataset.id);
       $$("[data-mv]", el).forEach((b) => (b.onclick = () => { const j = i + +b.dataset.mv; [ids[i], ids[j]] = [ids[j], ids[i]]; dirty = true; draw(); }));
       $("[data-un]", el).onclick = () => { ids.splice(i, 1); dirty = true; draw(); }; });
@@ -244,12 +264,15 @@ async function vEdit(id) {
   const m = old ? structuredClone(old) : { cat: filt || "sterea", sub: filt ? "" : "boiotia", also: [], kicker: "", title: "", lead: "", img: null, date: "", author: "", feat: false, draft: false };
   let body = old ? await api.body(id) : "";
   let dirty = false;
+  const place0 = placeOf(old); let place = place0;
+  const placeHtml = () => `<div class="place"><p class="pq">Θα μπει στην ενότητα <b>«${esc(catOf(m.cat).t)}${subName(m.cat, m.sub) ? " › " + esc(subName(m.cat, m.sub)) : ""}»</b>. Να μπει και στα <b>πρώτα θέματα της αρχικής</b>;</p>
+<div class="pls">${[["no", "Όχι", "Μόνο στην ενότητά του"], ["top", "Ναι, στα πρώτα θέματα", "Μπαίνει στη 2η θέση, αμέσως κάτω από το κύριο θέμα"], ["main", "Ναι, ως Κύριο θέμα", "Η μεγάλη είδηση στην κορυφή της αρχικής"]].map(([k, t, s]) => `<button type="button" data-place="${k}" class="${place === k ? "on" : ""}"><b>${t}</b><small>${s}</small></button>`).join("")}</div></div>`;
   const subsHtml = () => { const c = catOf(m.cat); return c.subs ? `<div class="subs">${c.subs.map(([s, n]) => `<button type="button" data-sub="${s}" class="${m.sub === s ? "on" : ""}">${esc(n)}</button>`).join("")}</div>` : ""; };
   const photoHtml = () => m.img && m.img.u ? `<img src="${esc(thumbUrl({ ...m.img, s: m.img.s ? [m.img.s[Math.min(1, m.img.s.length - 1)]] : undefined }))}" alt=""><div class="row"><label class="btn">${ic("img")}Αλλαγή<input type="file" accept="image/*" hidden data-file></label><button type="button" class="btn ghost danger" data-noimg>Αφαίρεση</button></div>`
     : `<div style="color:var(--mute)">${ic("img", 38)}</div><p style="margin:6px 0 12px;font-weight:800">Σύρετε εδώ μια φωτογραφία ή</p><label class="btn pri">${ic("img")}Επιλογή φωτογραφίας<input type="file" accept="image/*" hidden data-file></label>`;
   V.innerHTML = `<h2 class="vt">${old ? "Επεξεργασία άρθρου" : "Νέο άρθρο"}</h2><p class="vs">${old ? `Δημοσιεύτηκε ${when(old)} · <a href="${esc(artUrl(old))}" target="_blank" rel="noopener">Προβολή στο site ↗</a>` : "Συμπληρώστε τα παρακάτω και πατήστε «Δημοσίευση»."}</p>
 <form class="ed" novalidate>
-<div class="card f"><span class="lab">Ενότητα</span><div class="cats">${CATS.map((c) => `<button type="button" data-cat="${c.k}" class="${m.cat === c.k ? "on" : ""}" style="--cc:${c.c}"><i></i>${esc(c.t)}</button>`).join("")}</div><div data-subs>${subsHtml()}</div></div>
+<div class="card f"><span class="lab">Ενότητα</span><div class="cats">${CATS.map((c) => `<button type="button" data-cat="${c.k}" class="${m.cat === c.k ? "on" : ""}" style="--cc:${c.c}"><i></i>${esc(c.t)}</button>`).join("")}</div><div data-subs>${subsHtml()}</div><div data-place-box>${placeHtml()}</div></div>
 <div class="card ed">
 <div class="f"><label for="e-t">Τίτλος</label><textarea id="e-t" class="title" name="title" rows="2" required placeholder="Ο τίτλος του άρθρου">${esc(m.title)}</textarea></div>
 <div class="f"><label for="e-k">Υπέρτιτλος <span style="font-weight:500;color:var(--mute)">(προαιρετικό — μικρό κείμενο πάνω από τον τίτλο, π.χ. «Λιβαδειά»)</span></label><input id="e-k" type="text" name="kicker" value="${esc(m.kicker)}"></div>
@@ -263,9 +286,10 @@ async function vEdit(id) {
 <small>Κάθε γραμμή γίνεται παράγραφος. «## » στην αρχή = ενδιάμεσος τίτλος · **λέξεις** = έντονα · γραμμές που αρχίζουν με «|» = πίνακας (π.χ. «| Θήβα – Λαμία | 0-0»).</small></div>
 <div class="card ed">
 <div class="two"><div class="f"><label for="e-a">Συντάκτης <span style="font-weight:500;color:var(--mute)">(προαιρετικό)</span></label><input id="e-a" type="text" name="author" value="${esc(m.author)}"></div>
-<div class="f"><label for="e-d">Ημερομηνία & ώρα</label><input id="e-d" type="datetime-local" name="date" value="${localDT(m.date)}"><small>Αν βάλετε μελλοντική ώρα, το άρθρο θα εμφανιστεί μόνο του τότε.</small></div></div>
-<div class="toggles"><label class="tg"><input type="checkbox" name="feat" ${m.feat ? "checked" : ""}><span>Καρφιτσωμένο στην αρχική<small>Μένει ψηλά στην αρχική όσο θέλετε. Τη σειρά (ποιο είναι το κύριο θέμα) την αλλάζετε στο «Αρχική σελίδα».</small></span></label>
-<label class="tg"><input type="checkbox" name="draft" ${m.draft ? "checked" : ""}><span>Πρόχειρο<small>Αποθηκεύεται αλλά δεν φαίνεται ακόμη στο site.</small></span></label></div>
+<div class="f"><label for="e-d">Ημερομηνία δημοσίευσης</label><div class="dt"><input id="e-d" type="date" name="dday" value="${localDT(m.date).slice(0, 10)}"><input type="time" name="dtime" aria-label="Ώρα" value="${localDT(m.date).slice(11, 16)}" ${m.noTime ? "hidden" : ""}></div>
+<label class="sw nt"><input type="checkbox" name="notime" ${m.noTime ? "checked" : ""}>Χωρίς ώρα — να φαίνεται μόνο η ημερομηνία</label>
+<small>Αν βάλετε μελλοντική μέρα, το άρθρο θα εμφανιστεί μόνο του τότε.</small></div></div>
+<div class="toggles"><label class="tg"><input type="checkbox" name="draft" ${m.draft ? "checked" : ""}><span>Πρόχειρο<small>Αποθηκεύεται αλλά δεν φαίνεται ακόμη στο site.</small></span></label></div>
 <div class="f"><span class="lab">Να φαίνεται και στις ενότητες <span style="font-weight:500;color:var(--mute)">(προαιρετικό)</span></span><div class="also">${CATS.map((c) => `<label><input type="checkbox" name="also" value="${c.k}" ${(m.also || []).includes(c.k) ? "checked" : ""}>${esc(c.t)}</label>`).join("")}</div></div>
 </div>
 </form>`;
@@ -275,8 +299,11 @@ async function vEdit(id) {
   const F = $("form", V);
   const mark = () => { dirty = true; $("[data-st]").textContent = "Υπάρχουν αλλαγές που δεν αποθηκεύτηκαν"; };
   F.addEventListener("input", mark);
-  const bindSubs = () => $$("[data-sub]", V).forEach((b) => (b.onclick = () => { m.sub = m.sub === b.dataset.sub ? "" : b.dataset.sub; $("[data-subs]", V).innerHTML = subsHtml(); bindSubs(); mark(); }));
-  $$("[data-cat]", V).forEach((b) => (b.onclick = () => { m.cat = b.dataset.cat; const c = catOf(m.cat); m.sub = c.subs ? (c.k === "sterea" ? "boiotia" : c.subs[0][0]) : ""; $$("[data-cat]", V).forEach((x) => x.classList.toggle("on", x === b)); $("[data-subs]", V).innerHTML = subsHtml(); bindSubs(); mark(); }));
+  const bindPlace = () => { $("[data-place-box]", V).innerHTML = placeHtml(); $$("[data-place]", V).forEach((b) => (b.onclick = () => { place = b.dataset.place; bindPlace(); mark(); })); };
+  bindPlace();
+  F.notime.onchange = () => { F.dtime.hidden = F.notime.checked; };
+  const bindSubs = () => $$("[data-sub]", V).forEach((b) => (b.onclick = () => { m.sub = m.sub === b.dataset.sub ? "" : b.dataset.sub; $("[data-subs]", V).innerHTML = subsHtml(); bindSubs(); bindPlace(); mark(); }));
+  $$("[data-cat]", V).forEach((b) => (b.onclick = () => { m.cat = b.dataset.cat; const c = catOf(m.cat); m.sub = c.subs ? (c.k === "sterea" ? "boiotia" : c.subs[0][0]) : ""; $$("[data-cat]", V).forEach((x) => x.classList.toggle("on", x === b)); $("[data-subs]", V).innerHTML = subsHtml(); bindSubs(); bindPlace(); mark(); }));
   bindSubs();
   const ph = $("[data-photo]", V);
   const bindPhoto = () => {
@@ -309,10 +336,12 @@ async function vEdit(id) {
   $("[data-save]").onclick = async () => {
     const title = F.title.value.trim(); if (!title) { toast("Γράψτε τίτλο", true); F.title.focus(); return; }
     const b = $("[data-save]"); b.disabled = true; b.textContent = "Αποθήκευση…";
-    const meta = { ...m, title, kicker: F.kicker.value.trim(), lead: F.lead.value.trim(), author: F.author.value.trim(), feat: F.feat.checked, rank: F.feat.checked ? (m.rank || Math.max(0, ...S.articles.filter((a) => a.feat).map((a) => a.rank || 0)) + 1) : undefined, draft: F.draft.checked,
-      date: F.date.value ? new Date(F.date.value).toISOString() : new Date().toISOString(), also: $$("[name=also]:checked", F).map((x) => x.value).filter((x) => x !== m.cat),
+    const meta = { ...m, title, kicker: F.kicker.value.trim(), lead: F.lead.value.trim(), author: F.author.value.trim(), feat: place !== "no", rank: place !== "no" ? (m.rank || 99) : undefined, draft: F.draft.checked,
+      date: pickDate(F.dday.value, F.dtime.value, F.notime.checked, old && old.date), noTime: F.notime.checked || undefined, also: $$("[name=also]:checked", F).map((x) => x.value).filter((x) => x !== m.cat),
       img: m.img ? { ...m.img, cap: F.cap.value.trim() } : null };
-    try { const saved = await api.saveArticle(meta, normBody(F.body.value)); dirty = false;
+    try { const saved = await api.saveArticle(meta, normBody(F.body.value));
+      if (place !== place0 && place !== "no") await api.order(placeIds(saved.id, place));
+      dirty = false;
       toast(old ? "Αποθηκεύτηκε" : (meta.draft ? "Αποθηκεύτηκε ως πρόχειρο" : "Δημοσιεύτηκε!")); go("edit", saved.id);
     } catch (err) { toast(err.message, true); b.disabled = false; b.textContent = old ? "Αποθήκευση" : "Δημοσίευση"; }
   };
@@ -339,8 +368,8 @@ function vImport() {
     if (!arts.length) { toast("Δεν βρέθηκαν άρθρα — κάθε άρθρο πρέπει να ξεκινά με «ΑΡΘΡΟ 1 / …»", true); return; }
     const n = (s) => s.toLowerCase().replace(/\s+/g, " ").trim();
     const have = new Set(S.articles.map((a) => n(a.title)));
-    arts.forEach((a, i) => { a.on = !have.has(n(a.title)); a.dupe = !a.on; a.feat = false; });
-    if (arts.length && !arts.some((a) => a.feat)) { const f0 = arts.find((a) => a.on); if (f0) f0.feat = true; }
+    arts.forEach((a, i) => { a.on = !have.has(n(a.title)); a.dupe = !a.on; a.place = "no"; });
+    const f0 = arts.find((a) => a.on); if (f0) f0.place = "top";
     dw.classList.add("done"); $("b", dw).textContent = "1. " + f.name; $("span", dw).textContent = arts.length + " άρθρα βρέθηκαν · πατήστε για άλλο αρχείο";
     draw();
   }
@@ -350,6 +379,8 @@ function vImport() {
     if (k < files.length) toast("Κάποιες φωτογραφίες δεν έχουν αριθμό άρθρου στο όνομα");
     draw();
   }
+  let iday = localDT().slice(0, 10), inotime = false;
+  const plOpts = (a) => [["no", "Όχι στην αρχική"], ["top", "Στα πρώτα θέματα"], ["main", "Κύριο θέμα"]].map(([k, t]) => `<option value="${k}"${a.place === k ? " selected" : ""}>${t}</option>`).join("");
   const catOpts = (a) => CATS.map((c) => `<option value="${c.k}"${a.cat === c.k ? " selected" : ""}>${esc(c.t)}</option>`).join("");
   const subOpts = (a) => { const c = catOf(a.cat); return c.subs ? `<select data-k="sub"><option value="">—</option>${c.subs.map(([s, n]) => `<option value="${s}"${a.sub === s ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>` : ""; };
   function draw() {
@@ -357,11 +388,12 @@ function vImport() {
     const on = arts.filter((a) => a.on);
     res.innerHTML = `<div class="imp"><div class="card row" style="justify-content:space-between"><div><b style="font-size:18px">${arts.length} άρθρα</b> · ${arts.filter((a) => photos.has(a.n)).length} με φωτογραφία<br><span style="color:var(--mute);font-size:14px">Ελέγξτε τις ενότητες και πατήστε «Δημοσίευση». Το πρώτο θα είναι το πιο πρόσφατο.</span></div>
 <button class="btn pri big" data-pub ${on.length ? "" : "disabled"}>Δημοσίευση ${on.length} ${on.length === 1 ? "άρθρου" : "άρθρων"}</button></div>
+<div class="card row idate"><label class="f" style="margin:0"><span class="lab">Ημερομηνία δημοσίευσης</span><input type="date" data-iday value="${iday}"></label><label class="sw"><input type="checkbox" data-inotime ${inotime ? "checked" : ""}>Χωρίς ώρα — να φαίνεται μόνο η ημερομηνία</label></div>
 ${arts.map((a, i) => { const f = photos.get(a.n); const c = catOf(a.cat);
   return `<div class="ir${a.on ? "" : " off"}" data-i="${i}"><input type="checkbox" class="ck" ${a.on ? "checked" : ""} aria-label="Να δημοσιευτεί">
 <label class="th" style="${f ? "" : "background:" + c.c}" data-th>${f ? "" : "Χωρίς<br>φωτογραφία"}<input type="file" accept="image/*" hidden></label>
 <div><input class="t" value="${esc(a.title)}" aria-label="Τίτλος">${a.lead ? `<div class="l">${esc(a.lead)}</div>` : ""}
-<div class="opts"><span class="n">Άρθρο ${a.n}</span><select data-k="cat">${catOpts(a)}</select>${subOpts(a)}<label class="sw" style="font-size:13.5px"><input type="checkbox" data-k="feat" ${a.feat ? "checked" : ""}>Κεντρικό</label>${a.dupe ? '<span class="warn">Υπάρχει ήδη στο site</span>' : ""}</div></div></div>`; }).join("")}
+<div class="opts"><span class="n">Άρθρο ${a.n}</span><select data-k="cat">${catOpts(a)}</select>${subOpts(a)}<label class="plsel">Αρχική: <select data-k="place">${plOpts(a)}</select></label>${a.dupe ? '<span class="warn">Υπάρχει ήδη στο site</span>' : ""}</div></div></div>`; }).join("")}
 </div>`;
     arts.forEach((a, i) => { const f = photos.get(a.n); if (f) { const th = $(`[data-i="${i}"] [data-th]`, res); th.style.backgroundImage = `url(${URL.createObjectURL(f)})`; } });
     $$(".ir", res).forEach((row) => {
@@ -370,26 +402,33 @@ ${arts.map((a, i) => { const f = photos.get(a.n); const c = catOf(a.cat);
       $("input.t", row).oninput = (e) => (a.title = e.target.value);
       $("[data-k=cat]", row).onchange = (e) => { a.cat = e.target.value; const c = catOf(a.cat); a.sub = c.subs ? c.subs[0][0] : ""; draw(); };
       const sb = $("[data-k=sub]", row); if (sb) sb.onchange = (e) => (a.sub = e.target.value);
-      $("[data-k=feat]", row).onchange = (e) => (a.feat = e.target.checked);
+      $("[data-k=place]", row).onchange = (e) => { if (e.target.value === "main") arts.forEach((x) => { if (x !== a && x.place === "main") x.place = "top"; }); a.place = e.target.value; draw(); };
       $("[data-th] input", row).onchange = (e) => { if (e.target.files[0]) { photos.set(a.n, e.target.files[0]); draw(); } };
     });
+    $("[data-iday]", res).onchange = (e) => (iday = e.target.value || localDT().slice(0, 10));
+    $("[data-inotime]", res).onchange = (e) => (inotime = e.target.checked);
     const pb = $("[data-pub]", res); if (pb) pb.onclick = publish;
   }
   async function publish() {
     const list = arts.filter((a) => a.on && a.title.trim()); if (!list.length) return;
     res.innerHTML = `<div class="card done-card"><h3>Δημοσίευση…</h3><div class="prog"><i></i></div><p data-msg>Ανέβασμα φωτογραφιών</p></div>`;
     const bar = $(".prog i", res), msg = $("[data-msg]", res);
-    const now = Date.now(); const items = [];
+    const today = localDT().slice(0, 10);
+    const now = iday === today ? Date.now() : +new Date(iday + (iday > today ? "T00:05" : "T12:00")); const items = [];
+    const before = featIds();
     try {
       for (let i = 0; i < list.length; i++) {
         const a = list[i]; const f = photos.get(a.n); let img = null;
         if (f) { msg.textContent = `Φωτογραφία ${i + 1} από ${list.length}`; img = { ...(await uploadPhoto(f)), cap: "" }; }
         bar.style.width = Math.round(((i + 1) / list.length) * 85) + "%";
-        items.push({ meta: { cat: a.cat, sub: a.sub, also: [], kicker: a.kicker, title: a.title.trim(), lead: a.lead, img, author: a.author, feat: a.feat, draft: false,
-          date: new Date(now - i * 60000).toISOString() }, body: a.body });
+        items.push({ meta: { cat: a.cat, sub: a.sub, also: [], kicker: a.kicker, title: a.title.trim(), lead: a.lead, img, author: a.author, feat: a.place !== "no", draft: false,
+          date: new Date(now - i * 60000).toISOString(), noTime: inotime || undefined }, body: a.body });
       }
       msg.textContent = "Αποθήκευση άρθρων…";
-      for (let i = 0; i < items.length; i += 25) await api.saveMany(items.slice(i, i + 25));
+      const saved = []; for (let i = 0; i < items.length; i += 25) saved.push(...await api.saveMany(items.slice(i, i + 25)));
+      const main = saved.filter((m, i) => list[i].place === "main").map((m) => m.id)[0];
+      const tops = saved.filter((m, i) => list[i].place === "top").map((m) => m.id);
+      if (main || tops.length) await api.order((main ? [main, ...tops, ...before] : [before[0], ...tops, ...before.slice(1)]).filter(Boolean));
       bar.style.width = "100%";
       res.innerHTML = `<div class="card done-card">${ic("check", 60)}<h3>Δημοσιεύτηκαν ${items.length} άρθρα</h3><p style="color:var(--mute)">Είναι ήδη στο site, στις ενότητές τους.</p><div class="row" style="justify-content:center"><a class="btn pri" href="${LIVE ? "/" : "./"}" target="_blank" rel="noopener">Άνοιγμα site ↗</a><button class="btn" data-go="list">Λίστα άρθρων</button></div></div>`;
       $("[data-go]", res).onclick = () => go("list");
@@ -438,7 +477,7 @@ function vSettings() {
   V.innerHTML = `<h2 class="vt">Ρυθμίσεις</h2><p class="vs">Ό,τι γράψετε εδώ φαίνεται στο κάτω μέρος κάθε σελίδας και στις σελίδες «Επικοινωνία» και «Ταυτότητα». Κενά πεδία δεν εμφανίζονται.</p>
 <form class="card ed" novalidate>${F.map(([k, l, t]) => `<div class="f"><label for="s-${k}">${l}</label>${t === "textarea" ? `<textarea id="s-${k}" name="${k}" rows="4">${esc(s[k] || "")}</textarea>` : `<input id="s-${k}" type="${t}" name="${k}" value="${esc(s[k] || "")}">`}</div>`).join("")}
 <button class="btn pri big">Αποθήκευση ρυθμίσεων</button></form>`;
-  $("form", V).onsubmit = async (e) => { e.preventDefault(); const o = {}; F.forEach(([k]) => (o[k] = e.target[k].value.trim())); try { await api.saveSettings(o); toast("Αποθηκεύτηκε"); $(".top .mark span").textContent = site(); } catch (err) { toast(err.message, true); } };
+  $("form", V).onsubmit = async (e) => { e.preventDefault(); const o = { ...s }; F.forEach(([k]) => (o[k] = e.target[k].value.trim())); try { await api.saveSettings(o); toast("Αποθηκεύτηκε"); $(".top .mark span").textContent = site(); } catch (err) { toast(err.message, true); } };
 }
 
 window.addEventListener("beforeunload", (e) => { if ($(".savebar .st") && /δεν αποθηκεύτηκαν|Υπάρχουν αλλαγές/.test($(".savebar .st").textContent)) { e.preventDefault(); e.returnValue = ""; } });

@@ -4,8 +4,8 @@
 export const CATS = [
   { k: "ellada", t: "Ελλάδα", c: "#1F4E9C" },
   { k: "sterea", t: "Στερεά Ελλάδα", c: "#0D7A5F", subs: [["boiotia", "Βοιωτία"], ["evoia", "Εύβοια"], ["fthiotida", "Φθιώτιδα"], ["fokida", "Φωκίδα"], ["evrytania", "Ευρυτανία"]] },
-  { k: "apopseis", t: "Απόψεις", c: "#9A5B13" },
   { k: "athlitismos", t: "Αθλητισμός", c: "#D2401E", subs: [["podosfairo", "Ποδόσφαιρο"], ["basket", "Μπάσκετ"], ["alla", "Άλλα σπορ"]] },
+  { k: "apopseis", t: "Απόψεις", c: "#9A5B13" },
   { k: "kosmos", t: "Κόσμος", c: "#5A3E9E" },
   { k: "ygeia", t: "Υγεία – Ψυχαγωγία", c: "#0F8B8D", subs: [["ygeia", "Υγεία"], ["psychagogia", "Ψυχαγωγία"]] },
   { k: "aggelies", t: "Αγγελίες", c: "#5B6472" },
@@ -42,6 +42,24 @@ export function fmtDate(iso, style = "full") {
   if (style === "feed") { const p = parts(iso); const mo = ["Ιαν", "Φεβ", "Μαρ", "Απρ", "Μαΐ", "Ιουν", "Ιουλ", "Αυγ", "Σεπ", "Οκτ", "Νοε", "Δεκ"][+p.month - 1]; return p.day + " " + mo + " " + p.year + ", " + p.hour + ":" + p.minute; }
   if (style === "day") return new Intl.DateTimeFormat("el-GR", { timeZone: TZ, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(d);
   return new Intl.DateTimeFormat("el-GR", { timeZone: TZ, day: "numeric", month: "long", year: "numeric" }).format(d) + ", " + fmtDate(iso, "time");
+}
+/* Άρθρο «χωρίς ώρα» (m.noTime): φαίνεται μόνο η ημερομηνία */
+const MO = ["Ιαν", "Φεβ", "Μαρ", "Απρ", "Μαΐ", "Ιουν", "Ιουλ", "Αυγ", "Σεπ", "Οκτ", "Νοε", "Δεκ"];
+const dayKey = (iso) => { const p = parts(iso); return p.year + p.month + p.day; };
+export function mDate(m, style = "full") {
+  if (!m.noTime) return fmtDate(m.date, style);
+  const p = parts(m.date);
+  if (style === "time") return p.day + "/" + p.month;
+  if (style === "short") return p.day + "/" + p.month + "/" + p.year;
+  if (style === "feed") return p.day + " " + MO[+p.month - 1] + " " + p.year;
+  return new Intl.DateTimeFormat("el-GR", { timeZone: TZ, day: "numeric", month: "long", year: "numeric" }).format(new Date(m.date));
+}
+export function mAgo(m, now) {
+  if (!m.noTime) return ago(m.date, now);
+  const k = dayKey(m.date), n = new Date(now);
+  if (k === dayKey(n.toISOString())) return "Σήμερα";
+  if (k === dayKey(new Date(+n - 864e5).toISOString())) return "Χθες";
+  return mDate(m, "short");
 }
 export function ago(iso, now) {
   const m = Math.round((now - new Date(iso)) / 60000);
@@ -157,11 +175,11 @@ function media(m, ctx, opts = {}) {
 export function card(m, ctx, v = "std", opts = {}) {
   const L = links(ctx);
   const ex = m.lead || m.ex || "";
-  if (v === "row") return `<article class="c c-row"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "120px", want: 480 })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3><time datetime="${m.date}">${ago(m.date, ctx.now)}</time></div></article>`;
-  if (v === "text") return `<article class="c c-text"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3><time datetime="${m.date}">${ago(m.date, ctx.now)}</time></article>`;
-  if (v === "lead") return `<article class="c c-lead"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:1100px) 100vw, 860px", want: 1280, eager: opts.eager, big: true })}<div class="ct"><span class="kk">Κύριο θέμα</span>${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${fmtDate(m.date, "feed")}</time></div></article>`;
-  if (v === "big") return `<article class="c c-big"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:900px) 100vw, 640px", want: 960, eager: opts.eager, big: true })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${ago(m.date, ctx.now)}</time></div></article>`;
-  return `<article class="c c-std"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:700px) 100vw, 320px", want: 480 })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${opts.ex && ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${ago(m.date, ctx.now)}</time></div></article>`;
+  if (v === "row") return `<article class="c c-row"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "120px", want: 480 })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3><time datetime="${m.date}">${mAgo(m, ctx.now)}</time></div></article>`;
+  if (v === "text") return `<article class="c c-text"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3><time datetime="${m.date}">${mAgo(m, ctx.now)}</time></article>`;
+  if (v === "lead") return `<article class="c c-lead"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:1100px) 100vw, 860px", want: 1280, eager: opts.eager, big: true })}<div class="ct"><span class="kk">Κύριο θέμα</span>${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${mDate(m, "feed")}</time></div></article>`;
+  if (v === "big") return `<article class="c c-big"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:900px) 100vw, 640px", want: 960, eager: opts.eager, big: true })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${mAgo(m, ctx.now)}</time></div></article>`;
+  return `<article class="c c-std"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a>${media(m, ctx, { sizes: "(max-width:700px) 100vw, 320px", want: 480 })}<div class="ct">${kickerHtml(m, ctx)}<h3>${esc(m.title)}</h3>${opts.by && m.author ? `<span class="by">${esc(m.author)}</span>` : ""}${opts.ex && ex ? `<p>${esc(ex)}</p>` : ""}<time datetime="${m.date}">${mAgo(m, ctx.now)}</time></div></article>`;
 }
 export function adHtml(a, ctx, cls = "") {
   const L = links(ctx);
@@ -172,7 +190,7 @@ export function adHtml(a, ctx, cls = "") {
 export function headerHtml(state, ctx, active = "") {
   const L = links(ctx), st = state.settings || {};
   const list = visible(state, ctx.now).slice(0, 8);
-  const tick = list.map((m) => `<a href="${L.art(m)}"><b>${fmtDate(m.date, "time")}</b>${esc(m.title)}</a>`).join("");
+  const tick = list.map((m) => `<a href="${L.art(m)}"><b>${mDate(m, "time")}</b>${esc(m.title)}</a>`).join("");
   const navs = CATS.map((c) => `<li class="${c.subs ? "has" : ""}${active === c.k ? " on" : ""}" style="--cc:${c.c}"><a href="${L.cat(c.k)}">${esc(c.t)}</a>${c.subs ? `<ul>${c.subs.map(([s, n]) => `<li><a href="${L.cat(c.k, s)}">${esc(n)}</a></li>`).join("")}</ul>` : ""}</li>`).join("");
   const soc = socials(st);
   return `<div class="topbar"><div class="wrap"><span class="today" data-today>${fmtDate(ctx.now.toISOString(), "day")}</span>
@@ -219,9 +237,10 @@ export function sidebarHtml(state, ctx, { exclude = "" } = {}) {
 /* Ροή ειδήσεων: ένα χρώμα, μικρή τετράγωνη φωτογραφία αριστερά, τίτλος, ημερομηνία */
 export function feedHtml(state, ctx, { n = 10, exclude = "", cls = "" } = {}) {
   const L = links(ctx);
-  const list = visible(state, ctx.now).filter((m) => m.id !== exclude).slice(0, n);
+  const ex = new Set([].concat(exclude || []));
+  const list = visible(state, ctx.now).filter((m) => !ex.has(m.id)).slice(0, n);
   if (!list.length) return "";
-  return `<section class="feed ${cls}" aria-label="Ροή ειδήσεων"><h2 class="fh2"><a href="${L.roi()}">Ροή ειδήσεων</a></h2><ol>${list.map((m) => `<li><a href="${L.art(m)}"><span class="fth">${m.img && m.img.u ? imgTag(m.img, ctx, { sizes: "96px", want: 480, alt: "" }) : noImg(m)}</span><span class="ftx"><b>${esc(m.title)}</b><time datetime="${m.date}">${fmtDate(m.date, "feed")}</time></span></a></li>`).join("")}</ol><a class="more" href="${L.roi()}">Όλες οι ειδήσεις →</a></section>`;
+  return `<section class="feed ${cls}" aria-label="Ροή ειδήσεων"><h2 class="fh2"><a href="${L.roi()}">Ροή ειδήσεων</a></h2><ol>${list.map((m) => `<li><a href="${L.art(m)}"><span class="fth">${m.img && m.img.u ? imgTag(m.img, ctx, { sizes: "96px", want: 480, alt: "" }) : noImg(m)}</span><span class="ftx"><b>${esc(m.title)}</b><time datetime="${m.date}">${mDate(m, "feed")}</time></span></a></li>`).join("")}</ol><a class="more" href="${L.roi()}">Όλες οι ειδήσεις →</a></section>`;
 }
 /* διαφημίσεις μέσα στη ροή για κινητά (στην οθόνη υπολογιστή είναι στο πλάι) */
 function inlineAd(ads, i, ctx) { if (!ads.length) return ""; return adHtml(ads[i % ads.length], ctx, "mob"); }
@@ -238,8 +257,10 @@ export function homeHtml(state, ctx) {
   const between = (k) => wide.filter((a) => (a.after || "") === k);
   const loose = wide.filter((a) => !a.after || !CATS.find((c) => c.k === a.after));
   let blocks = "", ai = 1, li = 0;
-  const variants = { ellada: "a", sterea: "s", apopseis: "op", athlitismos: "sp", kosmos: "b", ygeia: "a", aggelies: "b" };
+  const variants = { ellada: "a", sterea: "s", apopseis: "b3", athlitismos: "sp", kosmos: "b", ygeia: "a", aggelies: "b" };
   const shown = new Set([lead.id, ...sec.map((x) => x.id)]);
+  /* επιλογή του εκδότη: η Ροή ειδήσεων της αρχικής να μην επαναλαμβάνει τα 5 πρώτα θέματα */
+  const noDup = (state.settings || {}).feedNoDup !== false ? [...shown] : "";
   CATS.forEach((c, i) => {
     let list = all.filter((a) => inCat(a, c.k) && !shown.has(a.id));
     if (!list.length) list = all.filter((a) => inCat(a, c.k));
@@ -255,10 +276,10 @@ export function homeHtml(state, ctx) {
 ${card(lead, ctx, "lead", { eager: true })}
 <div class="hsec">${sec.map((m) => card(m, ctx, "std", { ex: true })).join("")}</div>
 </section>
-${feedHtml(state, ctx, { n: 8, cls: "feed-m" })}
+${feedHtml(state, ctx, { n: 8, cls: "feed-m", exclude: noDup })}
 ${inlineAd(sideAds, 0, ctx)}
 ${blocks}
-</div>${sidebarHtml(state, ctx)}</div>`;
+</div>${sidebarHtml(state, ctx, { exclude: noDup })}</div>`;
 }
 
 function sectionBlock(c, list, ctx, v) {
@@ -268,7 +289,8 @@ function sectionBlock(c, list, ctx, v) {
   if (v !== "op" && list.length === 1) body = `<div class="b-one">${card(list[0], ctx, "big")}</div>`;
   else if (v !== "op" && list.length === 2) body = `<div class="b-two">${list.map((m) => card(m, ctx, "std", { ex: true })).join("")}</div>`;
   else if (v === "sp") body = `<div class="b-sp">${card(list[0], ctx, "big")}<div class="b-col">${list.slice(1, 4).map((m) => card(m, ctx, "row")).join("")}</div></div>`;
-  else if (v === "op") body = `<div class="b-op">${list.slice(0, 3).map((m) => `<article class="c c-op"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a><span class="q" aria-hidden="true">“</span><h3>${esc(m.title)}</h3>${m.author ? `<span class="by">${esc(m.author)}</span>` : ""}<time datetime="${m.date}">${ago(m.date, ctx.now)}</time></article>`).join("")}</div>`;
+  else if (v === "op") body = `<div class="b-op">${list.slice(0, 3).map((m) => `<article class="c c-op"><a class="ov" href="${L.art(m)}" aria-label="${esc(m.title)}"></a><span class="q" aria-hidden="true">“</span><h3>${esc(m.title)}</h3>${m.author ? `<span class="by">${esc(m.author)}</span>` : ""}<time datetime="${m.date}">${mAgo(m, ctx.now)}</time></article>`).join("")}</div>`;
+  else if (v === "b3") body = `<div class="b-4 b-3">${list.slice(0, 3).map((m) => card(m, ctx, "std", { by: true })).join("")}</div>`;
   else if (v === "b") body = `<div class="b-4">${list.slice(0, 4).map((m) => card(m, ctx, "std")).join("")}</div>`;
   else if (v === "s") body = `<div class="b-s">${card(list[0], ctx, "big")}<div class="b-2">${list.slice(1, 5).map((m) => card(m, ctx, "std")).join("")}</div></div>${list.length > 5 ? `<div class="b-txt">${list.slice(5, 9).map((m) => card(m, ctx, "text")).join("")}</div>` : ""}`;
   else body = `<div class="b-a">${card(list[0], ctx, "big")}<div class="b-col">${list.slice(1, 5).map((m) => card(m, ctx, "row")).join("")}</div></div>`;
@@ -320,7 +342,7 @@ export function articleHtml(state, ctx, m, body) {
   return `<div class="wrap grid"><div class="main"><article class="art" style="--cc:${c.c}">
 <nav class="crumbs" aria-label="Διαδρομή"><a href="${L.home}">Αρχική</a> <span>›</span> <a href="${L.cat(m.cat)}">${esc(c.t)}</a>${sn ? ` <span>›</span> <a href="${L.cat(m.cat, m.sub)}">${esc(sn)}</a>` : ""}</nav>
 <header class="ah">${m.kicker ? `<p class="akick">${esc(m.kicker)}</p>` : ""}<h1>${esc(m.title)}</h1>${m.lead ? `<p class="alead">${esc(m.lead)}</p>` : ""}
-<div class="ameta"><div class="mm">${m.author ? `<span class="by">${esc(m.author)}</span>` : `<span class="by">${esc(st.name || "")}</span>`}<time datetime="${m.date}">${fmtDate(m.date)}</time>${m.upd && m.upd > m.date ? `<span>Ενημέρωση: ${fmtDate(m.upd)}</span>` : ""}<span>${readMins(m)}′ ανάγνωση</span></div>${share}</div></header>
+<div class="ameta"><div class="mm">${m.author ? `<span class="by">${esc(m.author)}</span>` : `<span class="by">${esc(st.name || "")}</span>`}<time datetime="${m.date}">${mDate(m)}</time>${m.upd && m.upd > m.date ? `<span>Ενημέρωση: ${fmtDate(m.upd)}</span>` : ""}<span>${readMins(m)}′ ανάγνωση</span></div>${share}</div></header>
 ${fig}
 <div class="abody">${bh}</div>
 <footer class="afoot">${share}<a class="back" href="${L.cat(m.cat)}">Περισσότερα από ${esc(c.t)} →</a></footer>

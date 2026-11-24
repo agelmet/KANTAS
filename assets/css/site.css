@@ -448,3 +448,6 @@ p{text-wrap:pretty}
 .b-4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))!important}
 .blk-empty .bempty{margin:0;padding:22px 20px;border:1.5px dashed var(--line);border-radius:10px;color:var(--mute);font:400 17px/1.5 var(--serif)}
 @media (max-width:540px){.b-4{grid-template-columns:minmax(0,1fr)!important}}
+
+/* Απόψεις: συντάκτης κάτω από τον τίτλο */
+.c-std .by{display:block;margin-top:6px;font:800 13px var(--sans);color:var(--cc)}
