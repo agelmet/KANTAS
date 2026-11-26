@@ -42,6 +42,7 @@ function behave() {
   const t = document.querySelector("[data-today]");
   if (t) t.textContent = new Intl.DateTimeFormat("el-GR", { timeZone: "Europe/Athens", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
   const nav = document.querySelector(".nav");
+  const on = nav && nav.querySelector(".wrap>ul>li.on"); if (on && matchMedia("(max-width:980px)").matches) on.parentElement.scrollLeft = Math.max(0, on.offsetLeft - 24);
   if (nav) { const io = new IntersectionObserver(([e]) => nav.classList.toggle("sh", !e.isIntersecting)); const m = document.querySelector(".mast"); if (m) io.observe(m); }
   document.addEventListener("click", async (e) => {
     const el = e.target.closest("[data-search],[data-search-close],[data-burger],[data-mnav-close],[data-copy],[data-zoom],.lb,.mnav");

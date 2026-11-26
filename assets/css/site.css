@@ -451,3 +451,32 @@ p{text-wrap:pretty}
 
 /* Απόψεις: συντάκτης κάτω από τον τίτλο */
 .c-std .by{display:block;margin-top:6px;font:800 13px var(--sans);color:var(--cc)}
+
+/* ===== perifereia24 · 26 Nov 2026 — η μπάρα των ενοτήτων σε ένα χρώμα (το μπλε του λογότυπου) ===== */
+.nav{background:var(--navy);border-bottom:0;-webkit-backdrop-filter:none;backdrop-filter:none}
+.nav.sh{box-shadow:0 8px 22px -12px rgba(15,28,63,.55)}
+.nav>.wrap>ul>li>a{color:#fff;height:50px}
+.nav>.wrap>ul>li>a::after{height:4px;background:var(--red)}
+.nav>.wrap>ul>li.on>a{color:#fff;background:rgba(255,255,255,.1)}
+.nav li.roi>a{color:#fff}
+.nav li.h>a{padding-left:15px}
+.nav li.h>a::after{left:15px}
+.nav li.has>a::before{opacity:.75}
+.nav>.wrap>ul>li.has>a{padding-right:31px}
+.nav>.wrap>ul>li.has>a::before{right:14px}
+@media (max-width:1240px){.nav>.wrap>ul>li.has>a{padding-right:26px}.nav>.wrap>ul>li.has>a::before{right:11px}}
+@media (hover:hover){.nav>.wrap>ul>li:hover>a{background:rgba(255,255,255,.1)}}
+.nav li ul{top:calc(100% + 1px)}
+.nav li ul a{color:var(--ink)}
+/* κινητό: η ίδια μπάρα, κυλάει οριζόντια κάτω από το λογότυπο */
+@media (max-width:980px){
+  .nav{display:block;position:static}
+  .nav>.wrap{padding-left:0;padding-right:0}
+  .nav>.wrap>ul{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:0 10px;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  .nav>.wrap>ul::-webkit-scrollbar{display:none}
+  .nav>.wrap>ul>li>a{height:44px;padding:0 13px;font-size:14px}
+  .nav>.wrap>ul>li>a::after{left:13px;right:13px;height:3px}
+  .nav>.wrap>ul>li.has>a{padding-right:13px}
+  .nav li.has>a::before,.nav li ul{display:none}
+  .nav li.h>a{padding-left:13px}
+}
